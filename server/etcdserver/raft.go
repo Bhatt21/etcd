@@ -57,6 +57,7 @@ func init() {
 		if raftStatus == nil {
 			return nil
 		}
+
 		return raftStatus()
 	}))
 }
@@ -113,6 +114,7 @@ type raftNodeConfig struct {
 }
 
 func newRaftNode(cfg raftNodeConfig) *raftNode {
+
 	var lg raft.Logger
 	if cfg.lg != nil {
 		lg = NewRaftLoggerZap(cfg.lg)
@@ -165,9 +167,14 @@ func (r *raftNode) start(rh *raftReadyHandler) {
 		for {
 			select {
 			case <-r.ticker.C:
+				// looks like this is clicked everywhere!
+				//fmt.Println("who am i")
 				r.tick()
 			case rd := <-r.Ready():
+				// message come here, including hearbeat messages.
+				//fmt.Println("Message", rd.Messages)
 				if rd.SoftState != nil {
+					fmt.Println("code runs in here ?")
 					newLeader := rd.SoftState.Lead != raft.None && rh.getLead() != rd.SoftState.Lead
 					if newLeader {
 						leaderChanges.Inc()
@@ -219,7 +226,9 @@ func (r *raftNode) start(rh *raftReadyHandler) {
 				// writing to their disks.
 				// For more details, check raft thesis 10.2.1
 				if islead {
+					//fmt.Println("I am the leader bitches")
 					// gofail: var raftBeforeLeaderSend struct{}
+					//fmt.Println("messages :::: ", rd.Messages)
 					r.transport.Send(r.processMessages(rd.Messages))
 				}
 
@@ -264,10 +273,11 @@ func (r *raftNode) start(rh *raftReadyHandler) {
 					}
 					// gofail: var raftAfterWALRelease struct{}
 				}
-
 				r.raftStorage.Append(rd.Entries)
 
 				if !islead {
+					fmt.Println("I am not leader lul")
+					//fmt.Println("I got this message", rd.Messages)
 					// finish processing incoming messages before we signal raftdone chan
 					msgs := r.processMessages(rd.Messages)
 
@@ -355,6 +365,7 @@ func (r *raftNode) processMessages(ms []raftpb.Message) []raftpb.Message {
 			ms[i].To = 0
 		}
 		if ms[i].Type == raftpb.MsgHeartbeat {
+			//fmt.Println("recieved heartbeat")
 			ok, exceed := r.td.Observe(ms[i].To)
 			if !ok {
 				// TODO: limit request rate.

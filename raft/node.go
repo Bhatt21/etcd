@@ -17,7 +17,7 @@ package raft
 import (
 	"context"
 	"errors"
-
+	"fmt"
 	pb "go.etcd.io/etcd/raft/v3/raftpb"
 )
 
@@ -216,9 +216,11 @@ type Peer struct {
 //
 // Peers must not be zero length; call RestartNode in that case.
 func StartNode(c *Config, peers []Peer) Node {
+	fmt.Println("Peers are ...", peers)
 	if len(peers) == 0 {
 		panic("no peers given; use RestartNode instead")
 	}
+
 	rn, err := NewRawNode(c)
 	if err != nil {
 		panic(err)
@@ -239,6 +241,7 @@ func StartNode(c *Config, peers []Peer) Node {
 // If the caller has an existing state machine, pass in the last log index that
 // has been applied to it; otherwise use zero.
 func RestartNode(c *Config) Node {
+	fmt.Println("restarted !!!! ")
 	rn, err := NewRawNode(c)
 	if err != nil {
 		panic(err)
@@ -300,7 +303,15 @@ func (n *node) Stop() {
 	<-n.done
 }
 
+// I think this is the brain sending shit everywhere
 func (n *node) run() {
+	//pc, _, _, ok := runtime.Caller(1)
+	//if !ok {
+	//	panic("ahhh")
+	//}
+	//// Get the name of the caller function
+	//callerName := runtime.FuncForPC(pc).Name()
+	//fmt.Println("callerName for run() is  ", callerName)
 	var propc chan msgWithResult
 	var readyc chan Ready
 	var advancec chan struct{}
@@ -311,6 +322,7 @@ func (n *node) run() {
 	lead := None
 
 	for {
+		// ignoring this shit for now
 		if advancec != nil {
 			readyc = nil
 		} else if n.rn.HasReady() {
@@ -325,6 +337,9 @@ func (n *node) run() {
 			rd = n.rn.readyWithoutAccept()
 			readyc = n.readyc
 		}
+		//fmt.Print("leader is ", r.lead)
+		// shit runs first time
+		// basically when lead == none
 
 		if lead != r.lead {
 			if r.hasLeader() {

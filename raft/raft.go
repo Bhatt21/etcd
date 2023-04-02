@@ -199,6 +199,7 @@ type Config struct {
 }
 
 func (c *Config) validate() error {
+	fmt.Println("heatbeat is ", c.HeartbeatTick)
 	if c.ID == None {
 		return errors.New("cannot use none as id")
 	}
@@ -324,7 +325,7 @@ func newRaft(c *Config) *raft {
 	if err != nil {
 		panic(err) // TODO(bdarnell)
 	}
-
+	fmt.Println("i would never ")
 	r := &raft{
 		id:                        c.ID,
 		lead:                      None,
@@ -468,6 +469,9 @@ func (r *raft) maybeSendAppend(to uint64, sendIfEmpty bool) bool {
 		pr.BecomeSnapshot(sindex)
 		r.logger.Debugf("%x paused sending replication messages to %x [%s]", r.id, to, pr)
 	} else {
+		// ah this shit
+		// message append
+		// fuck u, took so long to find u bitch
 		m.Type = pb.MsgApp
 		m.Index = pr.Next - 1
 		m.LogTerm = term
@@ -513,6 +517,7 @@ func (r *raft) sendHeartbeat(to uint64, ctx []byte) {
 // bcastAppend sends RPC, with entries to all peers that are not up-to-date
 // according to the progress recorded in r.prs.
 func (r *raft) bcastAppend() {
+	//fmt.Println("bcast applied!")
 	r.prs.Visit(func(id uint64, _ *tracker.Progress) {
 		if id == r.id {
 			return
