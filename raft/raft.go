@@ -679,7 +679,7 @@ func (r *raft) tickHeartbeat() {
 	if r.state != StateLeader {
 		return
 	}
-
+	fmt.Println("wtf is heatbeat elapsed and hearbeat timout", r.heartbeatElapsed, r.heartbeatTimeout)
 	if r.heartbeatElapsed >= r.heartbeatTimeout {
 		r.heartbeatElapsed = 0
 		if err := r.Step(pb.Message{From: r.id, Type: pb.MsgBeat}); err != nil {
@@ -850,11 +850,14 @@ func (r *raft) poll(id uint64, t pb.MessageType, v bool) (granted int, rejected 
 }
 
 func (r *raft) Step(m pb.Message) error {
+	fmt.Println("Message in Step is", m)
 	// Handle the message term, which may result in our stepping down to a follower.
 	switch {
 	case m.Term == 0:
-		// local message
 	case m.Term > r.Term:
+		//lets ignore this shit for now
+		// things happening here in election as expected.
+		// yes just to confirm this shit will run during an election only.
 		if m.Type == pb.MsgVote || m.Type == pb.MsgPreVote {
 			force := bytes.Equal(m.Context, []byte(campaignTransfer))
 			inLease := r.checkQuorum && r.lead != None && r.electionElapsed < r.electionTimeout
@@ -884,8 +887,10 @@ func (r *raft) Step(m pb.Message) error {
 				r.becomeFollower(m.Term, None)
 			}
 		}
-
+	// fuck this shit as well
+	// well this shit is actually fucked, not at all in normal circumstances
 	case m.Term < r.Term:
+		//fmt.Println("no way this shit is run")
 		if (r.checkQuorum || r.preVote) && (m.Type == pb.MsgHeartbeat || m.Type == pb.MsgApp) {
 			// We have received messages from a leader at a lower term. It is possible
 			// that these messages were simply delayed in the network, but this could
@@ -925,13 +930,19 @@ func (r *raft) Step(m pb.Message) error {
 	}
 
 	switch m.Type {
+	// just to remind u what the fuck is MsgHup
+	//'MsgHup' is used for election. If a node is a follower or candidate, the
+	//'tick' function in 'raft' struct is set as 'tickElection'. If a follower or
+	//candidate has not received any heartbeat before the election timeout, it
+	//passes 'MsgHup' to its Step method and becomes (or remains) a candidate to
+	//start a new election
 	case pb.MsgHup:
 		if r.preVote {
 			r.hup(campaignPreElection)
 		} else {
 			r.hup(campaignElection)
 		}
-
+	// very clear from how they are spelt
 	case pb.MsgVote, pb.MsgPreVote:
 		// We can vote if this is a repeat of a vote we've already cast...
 		canVote := r.Vote == m.From ||
@@ -981,7 +992,8 @@ func (r *raft) Step(m pb.Message) error {
 				r.id, r.raftLog.lastTerm(), r.raftLog.lastIndex(), r.Vote, m.Type, m.From, m.LogTerm, m.Index, r.Term)
 			r.send(pb.Message{To: m.From, Term: r.Term, Type: voteRespMsgType(m.Type), Reject: true})
 		}
-
+	// mofo this is the mystery to break
+	// wtf is this step with a lower case s.
 	default:
 		err := r.step(r, m)
 		if err != nil {
@@ -993,10 +1005,12 @@ func (r *raft) Step(m pb.Message) error {
 
 type stepFunc func(r *raft, m pb.Message) error
 
+// lets go to message beat
 func stepLeader(r *raft, m pb.Message) error {
 	// These message types do not require any progress for m.From.
 	switch m.Type {
 	case pb.MsgBeat:
+		fmt.Println("I am the leader!!!")
 		r.bcastHeartbeat()
 		return nil
 	case pb.MsgCheckQuorum:

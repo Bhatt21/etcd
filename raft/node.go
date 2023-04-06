@@ -211,6 +211,7 @@ type Peer struct {
 	Context []byte
 }
 
+// new node --> gets called by etcdsercer, restart/start --> calls raft module run() --> calls step functions
 // StartNode returns a new Node given configuration and a list of raft peers.
 // It appends a ConfChangeAddNode entry for each given peer to the initial log.
 //
@@ -320,7 +321,7 @@ func (n *node) run() {
 	r := n.rn.raft
 
 	lead := None
-
+	// this shit is sending things to step functions in main r module
 	for {
 		// ignoring this shit for now
 		if advancec != nil {
@@ -361,6 +362,7 @@ func (n *node) run() {
 		// described in raft dissertation)
 		// Currently it is dropped in Step silently.
 		case pm := <-propc:
+			fmt.Println("what does pm looks like", pm.m, pm.result)
 			m := pm.m
 			m.From = r.id
 			err := r.Step(m)
